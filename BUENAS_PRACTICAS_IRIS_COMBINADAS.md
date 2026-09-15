@@ -247,29 +247,31 @@ Write $System.Status.GetErrorText($system.OBJ.Compile("Demo.MiClase", "ck"))
 - `d` = Display errors
 - `u` = Update (no recompilar si no hay cambios)
 
-### 2.3 ⚠️ Evitar Heredocs Complejos en Terminal
+### 2.3 El código va por stdin, nunca como argumento posicional
 
-**❌ NO FUNCIONA BIEN:**
+**❌ NO FUNCIONA:** pasar el código como argumento a `iris session` se interpreta
+como nombre de rutina y devuelve `<INVALID ARGUMENT>`.
 ```bash
-# Heredocs con ObjectScript pueden fallar
-docker exec iris102 iris session IRIS -U DEMO << 'EOF'
+docker exec iris102 iris session IRIS -U DEMO "Do \$system.OBJ.CompilePackage(\"Demo\", \"ckr\")"
+```
+
+**✅ FORMA CORRECTA — heredoc por stdin, con `-i` en `docker exec`:**
+El heredoc anterior fallaba porque a `docker exec` le faltaba `-i`: sin ese flag
+no se conecta el stdin del host al del contenedor y el heredoc nunca llega a
+`iris session`.
+```bash
+docker exec -i iris102 iris session IRIS -U DEMO <<'EOF'
 Do $system.OBJ.Compile("Demo.Class", "ck")
 Halt
 EOF
 ```
 
-**✅ USAR ALTERNATIVAS:**
+Sirve igual para paquetes completos o scripts largos:
 ```bash
-# Opción 1: Echo con pipe
-docker exec iris102 bash -c "echo 'Do \$system.OBJ.Compile(\"Demo.Class\", \"ck\")' | iris session IRIS -U DEMO"
-
-# Opción 2: Crear script temporal
-echo 'Do $system.OBJ.CompilePackage("Demo", "ckr")' > /tmp/compile.txt
-docker cp /tmp/compile.txt iris102:/tmp/
-docker exec iris102 bash -c "cat /tmp/compile.txt | iris session IRIS -U DEMO"
-
-# Opción 3: Script .sh con comandos individuales
-docker exec iris102 iris session IRIS -U DEMO "Do \$system.OBJ.CompilePackage(\"Demo\", \"ckr\")"
+docker exec -i iris102 iris session IRIS -U DEMO <<'EOF'
+Do $system.OBJ.CompilePackage("Demo", "ckr")
+Halt
+EOF
 ```
 
 ---

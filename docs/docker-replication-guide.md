@@ -66,10 +66,14 @@ Do ##class(%EnsembleMgr).EnableNamespace("MLTEST",1)
 Halt
 ```
 
-O en una sola línea desde bash:
+O en una sola línea desde bash, por stdin (el argumento posicional se interpreta como
+nombre de rutina y devuelve `<INVALID ARGUMENT>`, el código va por stdin):
 ```bash
-docker exec iris105 iris session IRIS -U '%SYS' \
-  '##class(%SYS.Namespace).Create("MLTEST","USER") Do ##class(%EnsembleMgr).EnableNamespace("MLTEST",1) Halt'
+docker exec -i iris105 iris session IRIS -U '%SYS' <<'EOF'
+Do ##class(%SYS.Namespace).Create("MLTEST","USER")
+Do ##class(%EnsembleMgr).EnableNamespace("MLTEST",1)
+Halt
+EOF
 ```
 
 ---
@@ -82,14 +86,19 @@ docker cp src/IRIS105 iris105:/tmp/IRIS105
 docker cp src/GCSP    iris105:/tmp/GCSP
 
 # Compilar desde sesión IRIS en namespace MLTEST
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr") Do $system.OBJ.LoadDir("/tmp/GCSP","ckr") Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr")
+Do $system.OBJ.LoadDir("/tmp/GCSP","ckr")
+Halt
+EOF
 ```
 
 Verificar:
 ```bash
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Write $system.OBJ.IsUpToDate("IRIS105.REST.NoShowService"), ! Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Write $system.OBJ.IsUpToDate("IRIS105.REST.NoShowService"), !
+Halt
+EOF
 # → 1
 ```
 
@@ -98,8 +107,11 @@ docker exec iris105 iris session IRIS -U MLTEST \
 ## Paso 5 — Crear Web Applications y configurar globals
 
 ```bash
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Do ##class(IRIS105.Util.WebAppSetup).ConfigureAll() Do ##class(IRIS105.Util.ProjectSetup).Init() Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Do ##class(IRIS105.Util.WebAppSetup).ConfigureAll()
+Do ##class(IRIS105.Util.ProjectSetup).Init()
+Halt
+EOF
 ```
 
 Esto crea:
@@ -109,8 +121,10 @@ Esto crea:
 
 Agregar tokens adicionales si es necesario:
 ```bash
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Set ^IRIS105("API","Tokens","mi-token-seguro")=1 Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Set ^IRIS105("API","Tokens","mi-token-seguro")=1
+Halt
+EOF
 ```
 
 ---
@@ -118,8 +132,10 @@ docker exec iris105 iris session IRIS -U MLTEST \
 ## Paso 6 — Generar datos mock
 
 ```bash
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Do ##class(IRIS105.Util.MockData).Generate() Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Do ##class(IRIS105.Util.MockData).Generate()
+Halt
+EOF
 ```
 
 Con parámetros personalizados (via API REST, después del paso 7):
@@ -138,8 +154,10 @@ curl -X POST http://localhost:52773/csp/mltest/api/ml/mock/generate \
 Opción A — via script SQL:
 ```bash
 docker cp sql/NoShow_model.sql iris105:/tmp/NoShow_model.sql
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Do ##class(%File).ReadAllTextFile("/tmp/NoShow_model.sql",.sql) ...'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Do ##class(%File).ReadAllTextFile("/tmp/NoShow_model.sql",.sql) ...
+Halt
+EOF
 ```
 
 Opción B — via API REST (paso a paso):
@@ -343,8 +361,11 @@ docker cp iris105-chat/static/index.html iris105:/opt/iris105-chat/static/index.
 Actualizar clases ObjectScript:
 ```bash
 docker cp src/IRIS105/REST/NoShowService.cls iris105:/tmp/NoShowService.cls
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Do $system.OBJ.Load("/tmp/NoShowService.cls","ck") Do $SYSTEM.SQL.Purge() Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Do $system.OBJ.Load("/tmp/NoShowService.cls","ck")
+Do $SYSTEM.SQL.Purge()
+Halt
+EOF
 ```
 
 ---
