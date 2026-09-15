@@ -1,0 +1,14 @@
+services:
+  iris105:
+    image: ${IRIS_IMAGE:-intersystemsdc/irishealth-ml-community:2026.1}
+    container_name: ${IRIS_CONTAINER_NAME:-iris105}
+    ports:
+      - "${IRIS_PORT:-52773}:52773"
+      - "${IRIS_SUPERSERVER_PORT:-1972}:1972"
+    environment:
+      IRIS_PASSWORD: ${IRIS_PASSWORD:-SYS}
+    volumes:
+      - ${WORKSPACE_DIR:-.}/src:/iris/code:ro
+      - ${WORKSPACE_DIR:-.}/iris105-chat:/iris/iris105-chat:ro
+      - ${WORKSPACE_DIR:-.}/docker/iris.init:/usr/irissys/iris.init:ro
+    restart: unless-stopped

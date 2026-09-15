@@ -1,8 +1,8 @@
 # IRIS105 — POC predicción de No-Show con IntegratedML + Chat en lenguaje natural
 
-POC que combina InterSystems IRIS 2024.1, IntegratedML y una app de chat con Claude (Anthropic) para analizar y predecir inasistencias a citas médicas en lenguaje natural.
+POC que combina InterSystems IRIS Community 2026.1, IntegratedML y una app de chat con Claude (Anthropic) para analizar y predecir inasistencias a citas médicas en lenguaje natural.
 
-**Namespace**: `MLTEST` · **Imagen Docker**: `intersystemsdc/irishealth-ml-community:latest`
+**Namespace**: `MLTEST` · **Imagen Docker**: `intersystemsdc/irishealth-ml-community:2026.1`
 
 ---
 
@@ -172,6 +172,7 @@ Ver `docs/iris105-chat-setup.md` para instalación detallada.
 | `docs/openapi.yaml` | Especificación OpenAPI 3.1.0 completa |
 | `docs/demo_script.md` | Guion rápido de demo (SQL + cURL) |
 | `docs/sprint_status.md` | Historial de avances y pendientes |
+| `docs/iris105-upgrade-runbook.md` | Estado operativo, recreación y aprendizajes del upgrade |
 | `BUENAS_PRACTICAS_IRIS_COMBINADAS.md` | Guía de buenas prácticas para proyectos IRIS |
 
 ---
