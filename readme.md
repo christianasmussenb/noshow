@@ -27,20 +27,30 @@ docker run -d --name iris105 -p 52773:52773 -p 1972:1972 \
   intersystemsdc/irishealth-ml-community:latest
 
 # 2. Crear namespace y compilar
-docker exec iris105 iris session IRIS -U '%SYS' \
-  'Do ##class(%SYS.Namespace).Create("MLTEST","USER") Halt'
+docker exec -i iris105 iris session IRIS -U '%SYS' <<'EOF'
+Do ##class(%SYS.Namespace).Create("MLTEST","USER")
+Halt
+EOF
 docker cp src/IRIS105 iris105:/tmp/IRIS105
 docker cp src/GCSP    iris105:/tmp/GCSP
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr") Do $system.OBJ.LoadDir("/tmp/GCSP","ckr") Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr")
+Do $system.OBJ.LoadDir("/tmp/GCSP","ckr")
+Halt
+EOF
 
 # 3. Configurar web apps y token
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Do ##class(IRIS105.Util.WebAppSetup).ConfigureAll() Do ##class(IRIS105.Util.ProjectSetup).Init() Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Do ##class(IRIS105.Util.WebAppSetup).ConfigureAll()
+Do ##class(IRIS105.Util.ProjectSetup).Init()
+Halt
+EOF
 
 # 4. Generar datos y entrenar modelo
-docker exec iris105 iris session IRIS -U MLTEST \
-  'Do ##class(IRIS105.Util.MockData).Generate() Halt'
+docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+Do ##class(IRIS105.Util.MockData).Generate()
+Halt
+EOF
 # Luego entrenar via UI o API (ver docs/docker-replication-guide.md paso 7)
 
 # 5. Instalar chat app

@@ -70,12 +70,21 @@ Este repositorio incluye una guía consolidada de buenas prácticas para proyect
 
 Sugerencia rápida: antes de ejecutar cargas masivas, compilar el paquete y hacer una corrida de prueba con pocos registros:
 
+El código va por stdin: un argumento posicional se interpreta como nombre de
+rutina y devuelve `<INVALID ARGUMENT>`.
+
 ```bash
-# Compilar paquete (desde host con iris CLI o dentro del contenedor)
-iris session IRIS -U %SYS "Do $system.OBJ.CompilePackage(""IRIS105"",""ckr"")"
+# Compilar paquete (dentro del contenedor, namespace MLTEST donde vive IRIS105)
+docker exec -i <contenedor> iris session IRIS -U MLTEST <<'EOF'
+Do $system.OBJ.CompilePackage("IRIS105","ckr")
+Halt
+EOF
 
 # Ejecutar generador en namespace MLTEST
-iris session IRIS -U MLTEST "Do ##class(IRIS105.Util.MockData).Generate()"
+docker exec -i <contenedor> iris session IRIS -U MLTEST <<'EOF'
+Do ##class(IRIS105.Util.MockData).Generate()
+Halt
+EOF
 ```
 
 8) Verificación rápida
