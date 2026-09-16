@@ -2,7 +2,7 @@
 # Arnés de verificación de noshow — HTC21-PLAN-PRUEBAS.md
 #
 # Uso:
-#   ./scripts/verify.sh [L1|L2|L3|L4|L5|L6|all]
+#   ./scripts/verify.sh [L1|L2|L3|L4|L5|L6|L11|all]
 #
 # Salida: una línea por check —
 #   PASS|<capa>|<check>|<observado>
@@ -17,6 +17,9 @@
 #   SUPERSERVER_PORT (default: 1972)
 #   TOKEN            (default: demo-readonly-token)
 #   ENV_FILE         (default: .env.docker)
+#   OLD_WEB_PORT     (default: 52773) -- puerto del contenedor viejo (iris105)
+#                    para L11. No incluida en "all": se corre aparte, a
+#                    propósito, mientras iris105 conviva con noshow-iris.
 
 set -uo pipefail
 
@@ -29,6 +32,8 @@ NAMESPACE="${NAMESPACE:-MLTEST}"
 WEB_PORT="${WEB_PORT:-52773}"
 SUPERSERVER_PORT="${SUPERSERVER_PORT:-1972}"
 TOKEN="${TOKEN:-demo-readonly-token}"
+OLD_CONTAINER="${OLD_CONTAINER:-iris105}"
+OLD_WEB_PORT="${OLD_WEB_PORT:-52773}"
 ENV_FILE="${ENV_FILE:-.env.docker}"
 BASE="http://localhost:${WEB_PORT}/csp/mltest/api"
 
@@ -229,6 +234,53 @@ l6() {
   fi
 }
 
+l11() {
+  # Regresión: mismo endpoint contra el contenedor nuevo (WEB_PORT) y el
+  # viejo en vivo (OLD_CONTAINER/OLD_WEB_PORT), comparando código de estado
+  # y forma general del payload (no byte-a-byte). No la corre "all": es una
+  # capa de migración, tiene sentido solo mientras conviven ambos
+  # contenedores.
+  local cap=L11
+  local old_base="http://localhost:${OLD_WEB_PORT}/csp/mltest/api"
+
+  compare_endpoint() {
+    local check="$1" path="$2" auth="$3"
+    local new_code old_code new_body old_body
+    if [[ "${auth}" == "auth" ]]; then
+      new_code="$(curl -s -o /tmp/l11_new.json -w '%{http_code}' -H "Authorization: Bearer ${TOKEN}" "${BASE}${path}")"
+      old_code="$(curl -s -o /tmp/l11_old.json -w '%{http_code}' -H "Authorization: Bearer ${TOKEN}" "${old_base}${path}")"
+    else
+      new_code="$(curl -s -o /tmp/l11_new.json -w '%{http_code}' "${BASE}${path}")"
+      old_code="$(curl -s -o /tmp/l11_old.json -w '%{http_code}' "${old_base}${path}")"
+    fi
+    new_body="$(cat /tmp/l11_new.json 2>/dev/null)"
+    old_body="$(cat /tmp/l11_old.json 2>/dev/null)"
+    rm -f /tmp/l11_new.json /tmp/l11_old.json
+
+    if [[ "${new_code}" != "${old_code}" ]]; then
+      fail "$cap" "${check}" "mismo código de estado (viejo=${old_code})" "nuevo=${new_code}"
+      return
+    fi
+    # Forma general: mismas claves de primer nivel del JSON, no valores exactos.
+    local new_keys old_keys
+    new_keys="$(echo "${new_body}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(sorted(d.keys()) if isinstance(d,dict) else 'not-a-dict')" 2>/dev/null)"
+    old_keys="$(echo "${old_body}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(sorted(d.keys()) if isinstance(d,dict) else 'not-a-dict')" 2>/dev/null)"
+    if [[ -z "${new_keys}" || -z "${old_keys}" ]]; then
+      pass "$cap" "${check}" "mismo código (${new_code}), payload no-JSON en ambos"
+    elif [[ "${new_keys}" == "${old_keys}" ]]; then
+      pass "$cap" "${check}" "mismo código (${new_code}) y misma forma de payload"
+    else
+      fail "$cap" "${check}" "mismas claves de payload (viejo=${old_keys})" "nuevo=${new_keys}"
+    fi
+  }
+
+  compare_endpoint "GET /api/health" "/health" noauth
+  compare_endpoint "GET /ml/stats/summary" "/ml/stats/summary" auth
+  compare_endpoint "GET /ml/stats/model" "/ml/stats/model" auth
+  compare_endpoint "GET /ml/analytics/top-specialties" "/ml/analytics/top-specialties" auth
+  compare_endpoint "GET /ml/appointments/active" "/ml/appointments/active" auth
+}
+
 case "${1:-all}" in
   L1) l1 ;;
   L2) l2 ;;
@@ -236,8 +288,9 @@ case "${1:-all}" in
   L4) l4 ;;
   L5) l5 ;;
   L6) l6 ;;
+  L11) l11 ;;
   all) l1; l2; l3; l4; l5; l6 ;;
-  *) echo "uso: $0 [L1|L2|L3|L4|L5|L6|all]" >&2; exit 2 ;;
+  *) echo "uso: $0 [L1|L2|L3|L4|L5|L6|L11|all]" >&2; exit 2 ;;
 esac
 
 exit "${FAILED}"
