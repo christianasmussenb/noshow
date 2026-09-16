@@ -4,3 +4,7 @@ httpx==0.27.0
 anthropic==0.40.0
 python-dotenv==1.0.0
 a2wsgi==1.10.4
+# flask no se usa en el código de la app: IRIS WSGI [Experimental] valida la presencia
+# de un framework WSGI conocido (flask o django) al configurar la Web App. Sin él, el
+# registro falla con "Unable to find a WSGI framework".
+flask==3.0.3
