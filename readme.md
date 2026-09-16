@@ -19,12 +19,18 @@ POC que combina InterSystems IRIS Community 2026.1, IntegratedML y una app de ch
 
 ## Inicio rápido (Docker)
 
-Ver la guía completa en `docs/docker-replication-guide.md`. Resumen:
+Ver la guía completa en `docs/docker-replication-guide.md`. Resumen — sin ningún paso
+manual de Management Portal, todo queda declarado en `docker-compose.yml` y en
+`IRIS105.Util.WebAppSetup`:
 
 ```bash
-# 1. Levantar IRIS (o `docker compose up -d`, ver docker-compose.yml)
-docker run -d --name noshow-iris -p 52773:52773 -p 1972:1972 \
-  intersystemsdc/irishealth-ml-community:latest
+# 0. (Opcional) definir ANTHROPIC_API_KEY en .env.docker para que el chat responda
+#    de punta a punta. Sin ella, el contenedor levanta igual y /csp/mlchat/health
+#    responde OK; /csp/mlchat/chat devuelve un 503 explícito, no un 500 opaco.
+
+# 1. Levantar IRIS — construye la imagen derivada con las dependencias del chat
+#    (docker/Dockerfile) y levanta el contenedor
+docker compose --env-file .env.docker up -d --build
 
 # 2. Crear namespace y compilar
 docker exec -i noshow-iris iris session IRIS -U '%SYS' <<'EOF'
@@ -39,27 +45,42 @@ Do $system.OBJ.LoadDir("/tmp/GCSP","ckr")
 Halt
 EOF
 
-# 3. Configurar web apps y token
+# 3. Configurar web apps y token — incluye /csp/mltest, /csp/mltest2 y /csp/mlchat
 docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do ##class(IRIS105.Util.WebAppSetup).ConfigureAll()
 Do ##class(IRIS105.Util.ProjectSetup).Init()
 Halt
 EOF
 
-# 4. Generar datos y entrenar modelo
+# 4. Generar datos
 docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do ##class(IRIS105.Util.MockData).Generate()
 Halt
 EOF
-# Luego entrenar via UI o API (ver docs/docker-replication-guide.md paso 7)
 
-# 5. Instalar chat app
-docker cp iris105-chat noshow-iris:/opt/iris105-chat
-docker exec noshow-iris /usr/irissys/bin/irispython -m pip install \
-  fastapi==0.115.0 httpx==0.27.0 anthropic==0.40.0 python-dotenv==1.0.0 a2wsgi==1.10.4
-# Crear /opt/iris105-chat/.env con ANTHROPIC_API_KEY, IRIS_BASE_URL, IRIS_TOKEN
-# Configurar web app /csp/mlchat en Management Portal (ver docs/iris105-chat-setup.md)
+# 5. Entrenar el modelo IntegratedML — paso OBLIGATORIO del despliegue.
+#    Con durable %SYS la base arranca vacía: el modelo no se hereda de una instancia
+#    anterior. Sin este paso, la mitad de los endpoints responden pero sin valor real.
+curl -X POST http://localhost:52773/csp/mltest/api/ml/model/step/execute \
+  -H "Authorization: Bearer demo-readonly-token" -H "Content-Type: application/json" -d '{"step":1}'
+curl -X POST http://localhost:52773/csp/mltest/api/ml/model/step/execute \
+  -H "Authorization: Bearer demo-readonly-token" -H "Content-Type: application/json" -d '{"step":2}'
+curl -X POST http://localhost:52773/csp/mltest/api/ml/model/step/execute \
+  -H "Authorization: Bearer demo-readonly-token" -H "Content-Type: application/json" -d '{"step":3}'
+curl -X POST http://localhost:52773/csp/mltest/api/ml/model/step/execute \
+  -H "Authorization: Bearer demo-readonly-token" -H "Content-Type: application/json" -d '{"step":4}'
+curl -X POST http://localhost:52773/csp/mltest/api/ml/model/step/execute \
+  -H "Authorization: Bearer demo-readonly-token" -H "Content-Type: application/json" -d '{"step":5}'
+
+# Confirmar que quedó entrenado antes de dar por terminado el despliegue:
+curl http://localhost:52773/csp/mltest/api/ml/stats/model \
+  -H "Authorization: Bearer demo-readonly-token"
+# → defaultTrainedModel: "NoShowModel2_t1" (o t2, t3...)
 ```
+
+Un `docker compose down` + `up -d` (sin `--build`) reutiliza la imagen ya construida — no
+reinstala nada — y conserva los datos en el volumen `noshow-data`. El modelo entrenado
+también persiste; solo hay que rehacer el entrenamiento si el volumen se recrea desde cero.
 
 ---
 
@@ -193,9 +214,9 @@ Ver `docs/iris105-chat-setup.md` para instalación detallada.
 # Compilar paquete completo
 ./scripts/compile_package.sh noshow-iris MLTEST
 
-# Actualizar chat app en el contenedor
-docker cp iris105-chat/main.py       noshow-iris:/opt/iris105-chat/main.py
-docker cp iris105-chat/static/index.html noshow-iris:/opt/iris105-chat/static/index.html
+# Actualizar el chat app: el código va por bind mount (iris105-chat/), un git pull
+# alcanza. Si cambian requirements.txt, hace falta reconstruir la imagen:
+docker compose --env-file .env.docker up -d --build
 
 # Ver logs del chat (desde IRIS WSGI, los errores van al log de IRIS)
 docker exec noshow-iris cat /usr/irissys/mgr/MLTEST/IRIS.log | tail -30

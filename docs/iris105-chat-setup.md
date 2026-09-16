@@ -1,5 +1,12 @@
 # iris105-chat — Guía de instalación y operación
 
+> **Desde `docker-compose.yml` + `docker/Dockerfile`, la instalación es automática.**
+> `docker compose up -d --build` construye la imagen con las dependencias del chat
+> (`iris105-chat/requirements.txt`) y `IRIS105.Util.WebAppSetup.ConfigureAll()` registra
+> `/csp/mlchat` junto con `/csp/mltest` y `/csp/mltest2`. Ver `readme.md`. Las secciones 1-6
+> de abajo describen ese mismo proceso paso a paso, útil para depurar o para instalar sobre
+> un contenedor que no usa este compose; no son necesarias en el flujo normal.
+
 App web de chat en lenguaje natural sobre los datos de IRIS105.  
 El usuario escribe preguntas en español; Claude (Anthropic SDK) orquesta llamadas a la API REST de IRIS y devuelve respuestas interpretadas.
 

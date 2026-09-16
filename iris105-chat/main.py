@@ -17,7 +17,8 @@ import iris_client
 from system_prompt import SYSTEM_PROMPT
 from tools import TOOLS
 
-_anthropic = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+_ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+_anthropic = anthropic.AsyncAnthropic(api_key=_ANTHROPIC_API_KEY)
 MODEL = "claude-sonnet-4-6"
 MAX_TOOL_ROUNDS = 10
 
@@ -53,6 +54,13 @@ async def index():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
+    if not _ANTHROPIC_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="ANTHROPIC_API_KEY no está configurada. Define la variable de entorno "
+            "para habilitar el chat.",
+        )
+
     messages: list[dict] = req.history + [{"role": "user", "content": req.message}]
 
     for _ in range(MAX_TOOL_ROUNDS):

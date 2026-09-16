@@ -1,6 +1,9 @@
 services:
   iris:
-    image: ${IRIS_IMAGE:-intersystemsdc/irishealth-ml-community:2026.1}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: noshow-iris:2026.1-chat
     container_name: noshow-iris
     networks: [default, htc21-net]
     mem_limit: 4g
@@ -11,6 +14,9 @@ services:
     environment:
       IRIS_PASSWORD: ${IRIS_PASSWORD:?definir en .env.docker}
       ISC_DATA_DIRECTORY: /durable
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      IRIS_BASE_URL: http://localhost:52773/csp/mltest
+      IRIS_TOKEN: ${IRIS_TOKEN:-}
     volumes:
       - noshow-data:/durable
       - ${WORKSPACE_DIR:-.}/src:/iris/code:ro
