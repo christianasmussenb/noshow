@@ -14,8 +14,14 @@ Si usas un contenedor Docker llamado `iris` y `iris session` disponible:
 
 ```bash
 # Crear namespace (desde consola IRIS)
+# %SYS.Namespace no tiene metodo Create en 2026.1; el equivalente vigente es
+# Config.Databases + Config.Namespaces.
 iris session IRIS -U %SYS
-Do ##class(%SYS.Namespace).Create("MLTEST","USER")
+Set dbprops("Directory")="/durable/mgr/mltestdata/"
+Do ##class(Config.Databases).Create("MLTESTDATA",.dbprops)
+Set nsprops("Globals")="MLTESTDATA"
+Set nsprops("Routines")="MLTESTDATA"
+Do ##class(Config.Namespaces).Create("MLTEST",.nsprops)
 # Habilitar interoperability en el namespace si se usarán Producciones
 Do ##class(%EnsembleMgr).EnableNamespace("MLTEST", 1)
 Halt

@@ -25,27 +25,35 @@ ClassMethod ConfigureAll() As %Status
     Quit sc
 }
 
-/// Crea o actualiza una Web Application usando Security.Applications
+/// Crea o actualiza una Web Application usando Security.Applications.
+/// Reescrito tras un despliegue real (T18/HTC21-PLAN-PRUEBAS.md) contra una
+/// instancia nueva: la versión anterior pasaba las propiedades como
+/// %DynamicObject en vez de un array por referencia (Create/Modify esperan
+/// ByRef array; un objeto pasado sin ".props" nunca transfiere nada), y usaba
+/// CSPEnabled/RESTEnabled/AuthenticationMethods, que no existen como
+/// propiedades en 2026.1 -- el equivalente vigente es Type + AutheEnabled.
+/// Nunca se notó porque /csp/mltest en iris105 ya existía de un setup viejo
+/// con Type y DispatchClass ya correctos; Modify() sobre props vacías no
+/// tocaba esos campos. Contra una instancia nueva, Create() no seteaba nada.
 ClassMethod Upsert(pName As %String, pNamespace As %String, pCSPEnabled As %Boolean = 1, pRESTEnabled As %Boolean = 0, pDispatchClass As %String = "", pCookiePath As %String = "") As %Status
 {
     #include %occErrors
     Set status = $$$OK
     Try {
-        Set props = ##class(%DynamicObject).%New()
-        Do props.%Set("NameSpace", pNamespace)
-        Do props.%Set("Enabled", 1)
-        Do props.%Set("CSPEnabled", pCSPEnabled)
-        Do props.%Set("CSPZENEnabled", pCSPEnabled)
-        Do props.%Set("RESTEnabled", pRESTEnabled)
-        // Siempre setear DispatchClass (incluso vacío) para evitar que quede un valor heredado.
-        Do props.%Set("DispatchClass", pDispatchClass)
-        If pCookiePath'="" Do props.%Set("SessionCookiePath", pCookiePath)
-        Do props.%Set("AuthenticationMethods", "64,4") // Password + Unauthenticated (demo)
-        If '##class(Security.Applications).Exists(pName) {
-            Set status = ##class(Security.Applications).Create(pName, props)
-        } Else {
-            Set status = ##class(Security.Applications).Modify(pName, props)
+        If ##class(Security.Applications).Exists(pName) {
+            Set status = ##class(Security.Applications).Delete(pName)
+            Quit:$$$ISERR(status)
         }
+        Kill props
+        Set props("NameSpace") = pNamespace
+        Set props("Type") = 2
+        // Siempre setear DispatchClass (incluso vacío) para evitar que quede un valor heredado.
+        Set props("DispatchClass") = pDispatchClass
+        Set props("Enabled") = 1
+        Set props("AutheEnabled") = 64
+        Set props("MatchRoles") = ":%All"
+        If pCookiePath'="" Set props("CookiePath") = pCookiePath
+        Set status = ##class(Security.Applications).Create(pName, .props)
     } Catch ex {
         Set status = ex.AsStatus()
     }
