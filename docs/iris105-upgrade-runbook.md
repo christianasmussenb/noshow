@@ -2,7 +2,7 @@
 
 ## Current state
 
-The `iris105` container runs `intersystemsdc/irishealth-ml-community:2026.1` and publishes IRIS on host ports `52773` (web) and `1972` (superserver). The initial Community password convention is `SYS` for the `ADMIN` and `SUPERUSER` accounts.
+The `noshow-iris` container runs `intersystemsdc/irishealth-ml-community:2026.1` and publishes IRIS on `127.0.0.1:52773` (web) and `127.0.0.1:1972` (superserver). The initial Community password convention is `SYS` for the `ADMIN` and `SUPERUSER` accounts.
 
 The container is managed from `docker-compose.yml` and `.env.docker`. The workspace mounts source code, the chat application, and `docker/iris.init`. The old container had no Docker volumes, so its expired 2025.1 data was not reusable; projects were reinstalled from their repositories.
 
@@ -19,7 +19,7 @@ The `MLTEST` and `MANTEN` namespaces coexist in the same IRIS instance. New appl
 ## Recreate procedure
 
 1. Confirm the image is available with `docker images`.
-2. Confirm the old container and its mounts with `docker inspect iris105`.
+2. Confirm the old container and its mounts with `docker inspect noshow-iris`.
 3. Start with `docker compose --env-file .env.docker up -d`.
 4. Wait for the Management Portal to return HTTP 200.
 5. Create or restore namespaces before importing classes.

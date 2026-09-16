@@ -22,40 +22,40 @@ POC que combina InterSystems IRIS Community 2026.1, IntegratedML y una app de ch
 Ver la guía completa en `docs/docker-replication-guide.md`. Resumen:
 
 ```bash
-# 1. Levantar IRIS
-docker run -d --name iris105 -p 52773:52773 -p 1972:1972 \
+# 1. Levantar IRIS (o `docker compose up -d`, ver docker-compose.yml)
+docker run -d --name noshow-iris -p 52773:52773 -p 1972:1972 \
   intersystemsdc/irishealth-ml-community:latest
 
 # 2. Crear namespace y compilar
-docker exec -i iris105 iris session IRIS -U '%SYS' <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U '%SYS' <<'EOF'
 Do ##class(%SYS.Namespace).Create("MLTEST","USER")
 Halt
 EOF
-docker cp src/IRIS105 iris105:/tmp/IRIS105
-docker cp src/GCSP    iris105:/tmp/GCSP
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker cp src/IRIS105 noshow-iris:/tmp/IRIS105
+docker cp src/GCSP    noshow-iris:/tmp/GCSP
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr")
 Do $system.OBJ.LoadDir("/tmp/GCSP","ckr")
 Halt
 EOF
 
 # 3. Configurar web apps y token
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do ##class(IRIS105.Util.WebAppSetup).ConfigureAll()
 Do ##class(IRIS105.Util.ProjectSetup).Init()
 Halt
 EOF
 
 # 4. Generar datos y entrenar modelo
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do ##class(IRIS105.Util.MockData).Generate()
 Halt
 EOF
 # Luego entrenar via UI o API (ver docs/docker-replication-guide.md paso 7)
 
 # 5. Instalar chat app
-docker cp iris105-chat iris105:/opt/iris105-chat
-docker exec iris105 /usr/irissys/bin/irispython -m pip install \
+docker cp iris105-chat noshow-iris:/opt/iris105-chat
+docker exec noshow-iris /usr/irissys/bin/irispython -m pip install \
   fastapi==0.115.0 httpx==0.27.0 anthropic==0.40.0 python-dotenv==1.0.0 a2wsgi==1.10.4
 # Crear /opt/iris105-chat/.env con ANTHROPIC_API_KEY, IRIS_BASE_URL, IRIS_TOKEN
 # Configurar web app /csp/mlchat en Management Portal (ver docs/iris105-chat-setup.md)
@@ -191,12 +191,12 @@ Ver `docs/iris105-chat-setup.md` para instalación detallada.
 
 ```bash
 # Compilar paquete completo
-./scripts/compile_package.sh iris105 MLTEST
+./scripts/compile_package.sh noshow-iris MLTEST
 
 # Actualizar chat app en el contenedor
-docker cp iris105-chat/main.py       iris105:/opt/iris105-chat/main.py
-docker cp iris105-chat/static/index.html iris105:/opt/iris105-chat/static/index.html
+docker cp iris105-chat/main.py       noshow-iris:/opt/iris105-chat/main.py
+docker cp iris105-chat/static/index.html noshow-iris:/opt/iris105-chat/static/index.html
 
 # Ver logs del chat (desde IRIS WSGI, los errores van al log de IRIS)
-docker exec iris105 cat /usr/irissys/mgr/MLTEST/IRIS.log | tail -30
+docker exec noshow-iris cat /usr/irissys/mgr/MLTEST/IRIS.log | tail -30
 ```

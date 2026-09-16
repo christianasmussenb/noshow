@@ -36,7 +36,7 @@ cd iris105
 
 ```bash
 docker run -d \
-  --name iris105 \
+  --name noshow-iris \
   -p 52773:52773 \
   -p 1972:1972 \
   intersystemsdc/irishealth-ml-community:latest
@@ -44,7 +44,7 @@ docker run -d \
 
 Verificar que arrancó:
 ```bash
-docker ps | grep iris105
+docker ps | grep noshow-iris
 curl http://localhost:52773/csp/sys/UtilHome.csp  # debe responder 200
 ```
 
@@ -56,7 +56,7 @@ Credenciales por defecto: `SuperUser / SYS` (cambiar en producción).
 ## Paso 3 — Crear namespace MLTEST
 
 ```bash
-docker exec -it iris105 iris session IRIS -U %SYS
+docker exec -it noshow-iris iris session IRIS -U %SYS
 ```
 
 Dentro de la sesión IRIS:
@@ -69,7 +69,7 @@ Halt
 O en una sola línea desde bash, por stdin (el argumento posicional se interpreta como
 nombre de rutina y devuelve `<INVALID ARGUMENT>`, el código va por stdin):
 ```bash
-docker exec -i iris105 iris session IRIS -U '%SYS' <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U '%SYS' <<'EOF'
 Do ##class(%SYS.Namespace).Create("MLTEST","USER")
 Do ##class(%EnsembleMgr).EnableNamespace("MLTEST",1)
 Halt
@@ -82,11 +82,11 @@ EOF
 
 ```bash
 # Copiar clases al contenedor
-docker cp src/IRIS105 iris105:/tmp/IRIS105
-docker cp src/GCSP    iris105:/tmp/GCSP
+docker cp src/IRIS105 noshow-iris:/tmp/IRIS105
+docker cp src/GCSP    noshow-iris:/tmp/GCSP
 
 # Compilar desde sesión IRIS en namespace MLTEST
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr")
 Do $system.OBJ.LoadDir("/tmp/GCSP","ckr")
 Halt
@@ -95,7 +95,7 @@ EOF
 
 Verificar:
 ```bash
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Write $system.OBJ.IsUpToDate("IRIS105.REST.NoShowService"), !
 Halt
 EOF
@@ -107,7 +107,7 @@ EOF
 ## Paso 5 — Crear Web Applications y configurar globals
 
 ```bash
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do ##class(IRIS105.Util.WebAppSetup).ConfigureAll()
 Do ##class(IRIS105.Util.ProjectSetup).Init()
 Halt
@@ -121,7 +121,7 @@ Esto crea:
 
 Agregar tokens adicionales si es necesario:
 ```bash
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Set ^IRIS105("API","Tokens","mi-token-seguro")=1
 Halt
 EOF
@@ -132,7 +132,7 @@ EOF
 ## Paso 6 — Generar datos mock
 
 ```bash
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do ##class(IRIS105.Util.MockData).Generate()
 Halt
 EOF
@@ -153,8 +153,8 @@ curl -X POST http://localhost:52773/csp/mltest/api/ml/mock/generate \
 
 Opción A — via script SQL:
 ```bash
-docker cp sql/NoShow_model.sql iris105:/tmp/NoShow_model.sql
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker cp sql/NoShow_model.sql noshow-iris:/tmp/NoShow_model.sql
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do ##class(%File).ReadAllTextFile("/tmp/NoShow_model.sql",.sql) ...
 Halt
 EOF
@@ -202,7 +202,7 @@ curl http://localhost:52773/csp/mltest/api/ml/stats/model \
 ### 8.1 Copiar archivos al contenedor
 
 ```bash
-docker cp iris105-chat iris105:/opt/iris105-chat
+docker cp iris105-chat noshow-iris:/opt/iris105-chat
 ```
 
 ### 8.2 Crear `.env` dentro del contenedor
@@ -215,14 +215,14 @@ ANTHROPIC_API_KEY=sk-ant-...tu-clave-aqui...
 IRIS_BASE_URL=http://localhost:52773/csp/mltest
 IRIS_TOKEN=demo-readonly-token
 EOF
-docker cp /tmp/iris105-chat.env iris105:/opt/iris105-chat/.env
+docker cp /tmp/iris105-chat.env noshow-iris:/opt/iris105-chat/.env
 rm /tmp/iris105-chat.env
 ```
 
 ### 8.3 Instalar dependencias con irispython
 
 ```bash
-docker exec iris105 /usr/irissys/bin/irispython -m pip install \
+docker exec noshow-iris /usr/irissys/bin/irispython -m pip install \
   fastapi==0.115.0 httpx==0.27.0 anthropic==0.40.0 \
   python-dotenv==1.0.0 a2wsgi==1.10.4 flask
 ```
@@ -232,7 +232,7 @@ docker exec iris105 /usr/irissys/bin/irispython -m pip install \
 ### 8.4 Verificar que la app carga
 
 ```bash
-docker exec iris105 /usr/irissys/bin/irispython -c "
+docker exec noshow-iris /usr/irissys/bin/irispython -c "
 import sys; sys.path.insert(0, '/opt/iris105-chat')
 from wsgi import app; print('OK:', type(app))"
 # → OK: <class 'a2wsgi.asgi.ASGIMiddleware'>
@@ -350,9 +350,9 @@ cloudflared tunnel run iris105
 
 ```bash
 # Volver a copiar archivos modificados
-docker cp iris105-chat/main.py      iris105:/opt/iris105-chat/main.py
-docker cp iris105-chat/iris_client.py iris105:/opt/iris105-chat/iris_client.py
-docker cp iris105-chat/static/index.html iris105:/opt/iris105-chat/static/index.html
+docker cp iris105-chat/main.py      noshow-iris:/opt/iris105-chat/main.py
+docker cp iris105-chat/iris_client.py noshow-iris:/opt/iris105-chat/iris_client.py
+docker cp iris105-chat/static/index.html noshow-iris:/opt/iris105-chat/static/index.html
 
 # IRIS recarga el módulo WSGI automáticamente en cada request (no requiere reinicio)
 # Solo se necesita reiniciar si se agregan nuevas dependencias pip
@@ -360,8 +360,8 @@ docker cp iris105-chat/static/index.html iris105:/opt/iris105-chat/static/index.
 
 Actualizar clases ObjectScript:
 ```bash
-docker cp src/IRIS105/REST/NoShowService.cls iris105:/tmp/NoShowService.cls
-docker exec -i iris105 iris session IRIS -U MLTEST <<'EOF'
+docker cp src/IRIS105/REST/NoShowService.cls noshow-iris:/tmp/NoShowService.cls
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
 Do $system.OBJ.Load("/tmp/NoShowService.cls","ck")
 Do $SYSTEM.SQL.Purge()
 Halt
@@ -376,7 +376,7 @@ Por defecto el contenedor **no persiste datos** al reiniciarse. Para persistir:
 
 ```bash
 docker run -d \
-  --name iris105 \
+  --name noshow-iris \
   -p 52773:52773 \
   -p 1972:1972 \
   -v $(pwd)/iris-data:/usr/irissys/mgr \

@@ -1,5 +1,5 @@
 services:
-  iris105:
+  iris:
     image: ${IRIS_IMAGE:-intersystemsdc/irishealth-ml-community:2026.1}
     container_name: noshow-iris
     networks: [default, htc21-net]
