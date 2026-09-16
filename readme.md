@@ -86,6 +86,28 @@ curl http://localhost:52773/csp/mltest/api/ml/stats/model \
 # → defaultTrainedModel: "NoShowModel2_t1" (o t2, t3...)
 ```
 
+**El paso 3 (TRAIN MODEL) puede fallar con `NoEstimatorChosen` y hay que reintentarlo.**
+Diagnosticado en `BRIEF-CODE-5.md` T20, 2026-09-16: es comportamiento estocástico y
+pre-existente de IntegratedML AutoML con estos datos mock (señal débil entre features y
+`NoShow`, ROC-AUC en torno a 0.55-0.60 incluso en corridas exitosas), no una regresión de
+la migración. Se probó con 20 reintentos consecutivos contra una instancia nueva, cada uno
+con `MockData.Generate()` regenerado antes (sin semilla fija, cada corrida usa datos
+distintos): los 20 fallaron. Contra la instancia de referencia (`iris105`), el modelo
+vigente (`NoShowModel2_t4`) también necesitó varios intentos a lo largo de varias semanas
+para entrenar. El volumen de datos no es la causa: `MockData.Generate()` genera un volumen
+comparable al de la tabla `Appointment` de referencia (~5300-5400 filas en ambos casos).
+
+Si el paso 3 falla, repetir el paso 4 (regenerar datos) y el paso 3 (reintentar
+entrenamiento) hasta que `runStatus` sea `completed`:
+```bash
+docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
+Do ##class(IRIS105.Util.MockData).Generate()
+Halt
+EOF
+curl -X POST http://localhost:52773/csp/mltest/api/ml/model/step/execute \
+  -H "Authorization: Bearer demo-readonly-token" -H "Content-Type: application/json" -d '{"step":3}'
+```
+
 Un `docker compose down` + `up -d` (sin `--build`) reutiliza la imagen ya construida — no
 reinstala nada — y conserva los datos en el volumen `noshow-data`. El modelo entrenado
 también persiste; solo hay que rehacer el entrenamiento si el volumen se recrea desde cero.
