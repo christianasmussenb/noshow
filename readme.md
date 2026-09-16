@@ -33,14 +33,22 @@ manual de Management Portal, todo queda declarado en `docker-compose.yml` y en
 docker compose --env-file .env.docker up -d --build
 
 # 2. Crear namespace y compilar
+# %SYS.Namespace no tiene metodo Create en 2026.1 (existia en versiones
+# anteriores). El equivalente vigente es Config.Databases + Config.Namespaces.
 docker exec -i noshow-iris iris session IRIS -U '%SYS' <<'EOF'
-Do ##class(%SYS.Namespace).Create("MLTEST","USER")
+Set dbprops("Directory")="/durable/mgr/mltestdata/"
+Set sc=##class(Config.Databases).Create("MLTESTDATA",.dbprops)
+Write "DB: ",$system.Status.GetErrorText(sc),!
+Set nsprops("Globals")="MLTESTDATA"
+Set nsprops("Routines")="MLTESTDATA"
+Set sc2=##class(Config.Namespaces).Create("MLTEST",.nsprops)
+Write "NS: ",$system.Status.GetErrorText(sc2),!
 Halt
 EOF
 docker cp src/IRIS105 noshow-iris:/tmp/IRIS105
 docker cp src/GCSP    noshow-iris:/tmp/GCSP
 docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
-Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr")
+Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr",,1)
 Do $system.OBJ.LoadDir("/tmp/GCSP","ckr")
 Halt
 EOF

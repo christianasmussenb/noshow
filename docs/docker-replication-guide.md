@@ -61,16 +61,28 @@ docker exec -it noshow-iris iris session IRIS -U %SYS
 
 Dentro de la sesión IRIS:
 ```objectscript
-Do ##class(%SYS.Namespace).Create("MLTEST","USER")
+Set dbprops("Directory")="/durable/mgr/mltestdata/"
+Do ##class(Config.Databases).Create("MLTESTDATA",.dbprops)
+Set nsprops("Globals")="MLTESTDATA"
+Set nsprops("Routines")="MLTESTDATA"
+Do ##class(Config.Namespaces).Create("MLTEST",.nsprops)
 Do ##class(%EnsembleMgr).EnableNamespace("MLTEST",1)
 Halt
 ```
+
+> `%SYS.Namespace` no tiene método `Create` en 2026.1 (`<METHOD DOES NOT EXIST>`;
+> existía en versiones anteriores). El equivalente vigente es `Config.Databases` +
+> `Config.Namespaces`.
 
 O en una sola línea desde bash, por stdin (el argumento posicional se interpreta como
 nombre de rutina y devuelve `<INVALID ARGUMENT>`, el código va por stdin):
 ```bash
 docker exec -i noshow-iris iris session IRIS -U '%SYS' <<'EOF'
-Do ##class(%SYS.Namespace).Create("MLTEST","USER")
+Set dbprops("Directory")="/durable/mgr/mltestdata/"
+Do ##class(Config.Databases).Create("MLTESTDATA",.dbprops)
+Set nsprops("Globals")="MLTESTDATA"
+Set nsprops("Routines")="MLTESTDATA"
+Do ##class(Config.Namespaces).Create("MLTEST",.nsprops)
 Do ##class(%EnsembleMgr).EnableNamespace("MLTEST",1)
 Halt
 EOF
@@ -87,7 +99,7 @@ docker cp src/GCSP    noshow-iris:/tmp/GCSP
 
 # Compilar desde sesión IRIS en namespace MLTEST
 docker exec -i noshow-iris iris session IRIS -U MLTEST <<'EOF'
-Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr")
+Do $system.OBJ.LoadDir("/tmp/IRIS105","ckr",,1)
 Do $system.OBJ.LoadDir("/tmp/GCSP","ckr")
 Halt
 EOF
